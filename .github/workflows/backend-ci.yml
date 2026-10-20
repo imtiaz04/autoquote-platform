@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  backend-tests:
-    name: Run Backend Tests
+  validate:
+    name: "1. Validate Dependencies"
     runs-on: ubuntu-latest
 
     defaults:
@@ -35,6 +35,31 @@ jobs:
 
       - name: Check Dependencies
         run: python -m pip check
+
+  test:
+    name: "2. Run Automated Tests"
+    needs: validate
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
 
       - name: Run Automated Tests
         run: python -m pytest -v
