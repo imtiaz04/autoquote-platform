@@ -16,4 +16,9 @@ def home():
     }
 
 
+@app.get("/healthz")
+def health_check():
+    return {"status": "healthy"}
+
+
 app.include_router(quotes_router)
