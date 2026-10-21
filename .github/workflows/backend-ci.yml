@@ -63,3 +63,26 @@ jobs:
 
       - name: Run Automated Tests
         run: python -m pytest -v
+  build:
+    name: "3. Build Docker Image"
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker Image
+        run: |
+          docker build \
+            -t autoquote-backend:${{ github.sha }} \
+            ./backend
+
+      - name: Verify Non-Root User
+        run: |
+          USER_ID=$(docker run --rm \
+            --entrypoint id \
+            autoquote-backend:${{ github.sha }} -u)
+
+          echo "Container UID: $USER_ID"
+          test "$USER_ID" != "0"
