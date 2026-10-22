@@ -86,3 +86,13 @@ jobs:
 
           echo "Container UID: $USER_ID"
           test "$USER_ID" != "0"
+
+      - name: Scan Docker Image with Trivy
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: autoquote-backend:${{ github.sha }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
