@@ -1,14 +1,23 @@
-name: AutoQuote Backend CI
+name: AutoQuote Backend CI/CD
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+
+  # ==========================================
+  # JOB 1: VALIDATE DEPENDENCIES
+  # ==========================================
+
   validate:
     name: "1. Validate Dependencies"
     runs-on: ubuntu-latest
@@ -35,6 +44,10 @@ jobs:
 
       - name: Check Dependencies
         run: python -m pip check
+
+  # ==========================================
+  # JOB 2: AUTOMATED TESTING
+  # ==========================================
 
   test:
     name: "2. Run Automated Tests"
@@ -63,8 +76,13 @@ jobs:
 
       - name: Run Automated Tests
         run: python -m pytest -v
+
+  # ==========================================
+  # JOB 3: BUILD AND SECURITY SCAN
+  # ==========================================
+
   build:
-    name: "3. Build Docker Image"
+    name: "3. Build and Scan Docker Image"
     needs: test
     runs-on: ubuntu-latest
 
@@ -96,3 +114,68 @@ jobs:
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
+
+      - name: Save Scanned Docker Image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker save \
+            -o /tmp/autoquote-backend.tar \
+            autoquote-backend:${{ github.sha }}
+
+      - name: Upload Docker Image Artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoquote-backend-image
+          path: /tmp/autoquote-backend.tar
+          retention-days: 1
+          if-no-files-found: error
+
+  # ==========================================
+  # JOB 4: PUBLISH TO GHCR
+  # ==========================================
+
+  publish:
+    name: "4. Publish Docker Image to GHCR"
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Download Scanned Docker Image
+        uses: actions/download-artifact@v4
+        with:
+          name: autoquote-backend-image
+          path: /tmp/autoquote-image
+
+      - name: Load Scanned Docker Image
+        run: |
+          docker load \
+            -i /tmp/autoquote-image/autoquote-backend.tar
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag Docker Image for GHCR
+        run: |
+          docker tag \
+            autoquote-backend:${{ github.sha }} \
+            ghcr.io/imtiaz04/autoquote-backend:${{ github.sha }}
+
+      - name: Push Docker Image to GHCR
+        run: |
+          docker push \
+            ghcr.io/imtiaz04/autoquote-backend:${{ github.sha }}
+
+      - name: Display Published Image
+        run: |
+          echo "Published Docker image:"
+          echo "ghcr.io/imtiaz04/autoquote-backend:${{ github.sha }}"
