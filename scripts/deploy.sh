@@ -365,6 +365,6 @@ log "SUCCESS: ${STANDBY_SLOT}:${STANDBY_PORT} is active."
 log "Previous active ${ACTIVE_SLOT}:${ACTIVE_PORT} remains running."
 
 if exists "$BACKUP_CONTAINER"; then
-    log "NOTE: Old standby backup ${BACKUP_CONTAINER} remains stopped."
-    log "Review/remove it before a future deployment targeting that standby slot."
+    log "Removing old standby backup ${BACKUP_CONTAINER}..."
+    docker rm "$BACKUP_CONTAINER"
 fi
