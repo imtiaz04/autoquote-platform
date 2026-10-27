@@ -35,3 +35,11 @@ htmlcov/
 *.swp
 *.swo
 *~
+
+# AutoQuote live NGINX configuration
+/nginx/autoquote.conf
+
+# Previous deployment script versions and backups
+/scripts/deploy-new.sh
+/scripts/deploy-v1.sh
+/scripts/deploy.sh.backup-*
