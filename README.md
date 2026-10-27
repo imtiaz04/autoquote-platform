@@ -102,7 +102,7 @@ flowchart TD
     F[Simulated Insurance Providers]
     G[Sorted Insurance Quotes]
 
-    A -->|POST /quotes/compare| B
+    A -->|"POST /quotes/compare"| B
     B --> C
     C --> D
     D --> E
