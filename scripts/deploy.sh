@@ -7,7 +7,7 @@ set -Eeuo pipefail
 
 IMAGE_REPOSITORY="ghcr.io/imtiaz04/autoquote-backend"
 PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
-NGINX_CONFIG="${PROJECT_DIR}/nginx/autoquote.conf"
+NGINX_CONFIG="${AUTOQUOTE_NGINX_CONFIG:-${PROJECT_DIR}/nginx/autoquote.conf}"
 LOCK_FILE="/tmp/autoquote-deploy.lock"
 
 log() {

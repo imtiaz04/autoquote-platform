@@ -4,13 +4,20 @@ on:
   push:
     branches:
       - main
+
   pull_request:
     branches:
       - main
+
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# Prevent overlapping production deployments.
+concurrency:
+  group: autoquote-production
+  cancel-in-progress: false
 
 jobs:
 
@@ -78,11 +85,11 @@ jobs:
         run: python -m pytest -v
 
   # ==========================================
-  # JOB 3: BUILD AND SECURITY SCAN
+  # JOB 3: BUILD DOCKER IMAGE
   # ==========================================
 
   build:
-    name: "3. Build and Scan Docker Image"
+    name: "3. Build Docker Image"
     needs: test
     runs-on: ubuntu-latest
 
@@ -105,6 +112,41 @@ jobs:
           echo "Container UID: $USER_ID"
           test "$USER_ID" != "0"
 
+      - name: Save Docker Image
+        run: |
+          docker save \
+            -o /tmp/autoquote-backend.tar \
+            autoquote-backend:${{ github.sha }}
+
+      - name: Upload Docker Image Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoquote-backend-image
+          path: /tmp/autoquote-backend.tar
+          retention-days: 1
+          if-no-files-found: error
+
+  # ==========================================
+  # JOB 4: TRIVY SECURITY SCAN
+  # ==========================================
+
+  security:
+    name: "4. Trivy Security Scan"
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Docker Image
+        uses: actions/download-artifact@v4
+        with:
+          name: autoquote-backend-image
+          path: /tmp/autoquote-image
+
+      - name: Load Docker Image
+        run: |
+          docker load \
+            -i /tmp/autoquote-image/autoquote-backend.tar
+
       - name: Scan Docker Image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -115,29 +157,13 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
-      - name: Save Scanned Docker Image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          docker save \
-            -o /tmp/autoquote-backend.tar \
-            autoquote-backend:${{ github.sha }}
-
-      - name: Upload Docker Image Artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
-        with:
-          name: autoquote-backend-image
-          path: /tmp/autoquote-backend.tar
-          retention-days: 1
-          if-no-files-found: error
-
   # ==========================================
-  # JOB 4: PUBLISH TO GHCR
+  # JOB 5: PUBLISH IMAGE TO GHCR
   # ==========================================
 
   publish:
-    name: "4. Publish Docker Image to GHCR"
-    needs: build
+    name: "5. Publish Docker Image to GHCR"
+    needs: security
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
@@ -179,3 +205,125 @@ jobs:
         run: |
           echo "Published Docker image:"
           echo "ghcr.io/imtiaz04/autoquote-backend:${{ github.sha }}"
+
+  # ==========================================
+  # JOB 6: BLUE-GREEN DEPLOYMENT
+  # ==========================================
+
+  deploy:
+    name: "6. Blue-Green Deployment"
+    needs: publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, Linux, X64, autoquote-deploy]
+
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Tested Commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify Deployment Environment
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Runner: $(hostname)"
+          echo "User: $(whoami)"
+
+          docker info >/dev/null
+          sudo -n /usr/sbin/nginx -t
+
+          test -f /home/imtiaz/Documents/autoquote-platform/nginx/autoquote.conf
+
+      - name: Execute Blue-Green Deployment
+        shell: bash
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+          AUTOQUOTE_NGINX_CONFIG: /home/imtiaz/Documents/autoquote-platform/nginx/autoquote.conf
+        run: |
+          set -euo pipefail
+
+          bash scripts/deploy.sh "$DEPLOY_SHA"
+
+  # ==========================================
+  # JOB 7: POST-DEPLOYMENT VERIFICATION
+  # ==========================================
+
+  verify:
+    name: "7. Post-Deployment Health Verification"
+    needs: deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, Linux, X64, autoquote-deploy]
+
+    timeout-minutes: 5
+
+    steps:
+      - name: Verify NGINX Health
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8080/healthz \
+            | grep -q '"status"[[:space:]]*:[[:space:]]*"healthy"'
+
+          echo "NGINX health verification passed."
+
+      - name: Verify Active Deployment Slot
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          HEADERS=$(curl --fail --silent --show-error \
+            -D - -o /dev/null \
+            http://127.0.0.1:8080/healthz)
+
+          echo "$HEADERS"
+
+          echo "$HEADERS" |
+            grep -Eiq '^X-Active-Slot:[[:space:]]*(blue|green)[[:space:]]*\r?$'
+
+          echo "Active deployment slot verified."
+
+      - name: Verify Blue and Green Containers
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for CONTAINER in autoquote-blue autoquote-green; do
+            STATUS=$(docker inspect \
+              --format '{{.State.Health.Status}}' \
+              "$CONTAINER")
+
+            echo "$CONTAINER: $STATUS"
+
+            test "$STATUS" = "healthy"
+          done
+
+          echo "Both blue-green containers are healthy."
+
+      - name: Verify No Temporary Backups Remain
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for CONTAINER in autoquote-blue-backup autoquote-green-backup; do
+            if docker container inspect "$CONTAINER" >/dev/null 2>&1; then
+              echo "Unexpected backup container remains: $CONTAINER"
+              exit 1
+            fi
+          done
+
+          echo "No temporary deployment backups remain."
+
+      - name: Display Deployment Summary
+        shell: bash
+        run: |
+          echo "AutoQuote deployment verification completed."
+          echo "Commit: ${{ github.sha }}"
+          docker ps \
+            --filter "name=autoquote-blue" \
+            --filter "name=autoquote-green" \
+            --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
