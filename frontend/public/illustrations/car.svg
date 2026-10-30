@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 500 300"
+     fill="none">
+
+  <defs>
+    <linearGradient id="carBody" x1="80" y1="100" x2="430" y2="250"
+                    gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#5B21B6"/>
+    </linearGradient>
+
+    <linearGradient id="windows" x1="170" y1="100" x2="330" y2="170">
+      <stop stop-color="#E0F2FE"/>
+      <stop offset="1" stop-color="#93C5FD"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Ground shadow -->
+  <ellipse cx="250" cy="258" rx="205" ry="18"
+           fill="#7C3AED" opacity="0.12"/>
+
+  <!-- Car roof -->
+  <path d="M145 160 L190 100 Q205 82 230 82
+           H310 Q330 82 345 104 L390 160"
+        fill="url(#carBody)"
+        stroke="#4C1D95"
+        stroke-width="5"/>
+
+  <!-- Windows -->
+  <path d="M195 151 L220 108 H260 V151 Z"
+        fill="url(#windows)"/>
+
+  <path d="M270 108 H309 Q319 108 327 120
+           L350 151 H270 Z"
+        fill="url(#windows)"/>
+
+  <!-- Car body -->
+  <path d="M75 170
+           Q85 155 115 155
+           H390
+           Q425 155 438 180
+           L450 215
+           Q455 235 430 235
+           H80
+           Q55 235 60 215 Z"
+        fill="url(#carBody)"
+        stroke="#4C1D95"
+        stroke-width="5"/>
+
+  <!-- Front light -->
+  <path d="M408 175 H438 L446 194 H414 Z"
+        fill="#FDE68A"/>
+
+  <!-- Rear light -->
+  <path d="M68 180 H100 V195 H62 Z"
+        fill="#FCA5A5"/>
+
+  <!-- Door line -->
+  <path d="M265 160 V225"
+        stroke="#4C1D95"
+        stroke-width="3"
+        opacity="0.6"/>
+
+  <!-- Door handles -->
+  <path d="M225 178 H250 M290 178 H315"
+        stroke="#DDD6FE"
+        stroke-width="6"
+        stroke-linecap="round"/>
+
+  <!-- Wheels -->
+  <circle cx="145" cy="230" r="37"
+          fill="#1E293B"/>
+
+  <circle cx="145" cy="230" r="20"
+          fill="#CBD5E1"/>
+
+  <circle cx="365" cy="230" r="37"
+          fill="#1E293B"/>
+
+  <circle cx="365" cy="230" r="20"
+          fill="#CBD5E1"/>
+
+  <!-- Wheel centers -->
+  <circle cx="145" cy="230" r="7"
+          fill="#64748B"/>
+
+  <circle cx="365" cy="230" r="7"
+          fill="#64748B"/>
+
+</svg>

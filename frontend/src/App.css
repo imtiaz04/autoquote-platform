@@ -1,0 +1,351 @@
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+main {
+  max-width: 1100px;
+  margin: 40px auto;
+  padding: 40px;
+  text-align: center;
+}
+
+h1 {
+  color: #4c1d95;
+  font-size: 38px;
+  font-weight: 700;
+  margin-bottom: 15px;
+}
+
+h2 {
+  color: #4c1d95;
+  margin-top: 35px;
+}
+
+p {
+  color: #475569;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+/* Insurance quote form card */
+form {
+  max-width: 850px;
+  margin: 25px auto;
+  padding: 35px;
+  background: #ffffff;
+  border: 1px solid #e9d5ff;
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(76, 29, 149, 0.12);
+}
+
+/* Two-column insurance form layout */
+form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 30px;
+  text-align: left;
+}
+
+form > div {
+  min-width: 0;
+}
+
+form > br {
+  display: none;
+}
+
+form label {
+  display: block;
+  margin-bottom: 8px;
+  color: #312e81;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Mobile-friendly layout */
+@media (max-width: 650px) {
+  form {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Modern insurance form inputs */
+form input,
+form select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #c4b5fd;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #1e293b;
+  font-size: 15px;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* Highlight selected input */
+form input:focus,
+form select:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
+/* Improve spacing between labels and fields */
+form label {
+  margin-bottom: 6px;
+}
+
+/* Green Compare Quotes button */
+form button[type="submit"] {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding: 16px 24px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #026b28, #059669);
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+  transition: background 0.2s, transform 0.2s;
+}
+
+form button[type="submit"]:hover {
+  background: linear-gradient(135deg, #16a34a, #047857);
+  transform: translateY(-1px);
+}
+
+form button[type="submit"]:active {
+  transform: translateY(0);
+}
+
+/* Insurance comparison results */
+.results-section {
+  max-width: 850px;
+  margin: 40px auto;
+  padding: 28px;
+  background: #ffffff;
+  border: 1px solid #e9d5ff;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(76, 29, 149, 0.1);
+}
+
+.results-section h2 {
+  margin-top: 0;
+}
+
+.comparison-table {
+  width: 100%;
+  margin-top: 20px;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.comparison-table th {
+  background: #6d28d9;
+  color: #ffffff;
+  padding: 16px;
+  font-weight: 700;
+}
+
+.comparison-table td {
+  padding: 16px;
+  border-bottom: 1px solid #e9d5ff;
+  color: #1e293b;
+}
+
+.comparison-table tbody tr:nth-child(even) {
+  background: #f5f3ff;
+}
+
+/* Dynamically highlight the lowest-priced provider */
+.comparison-table tbody tr.best-price {
+  background: #dcfce7;
+  font-weight: 700;
+}
+
+/* Keep the best-price row green when hovering */
+.comparison-table tbody tr.best-price:hover {
+  background: #bbf7d0;
+}
+
+.comparison-table tbody tr:hover {
+  background: #ede9fe;
+}
+
+/* Entered details summary card */
+.details-summary {
+  max-width: 850px;
+  margin: 30px auto;
+  padding: 24px 30px;
+  background: #ffffff;
+  border: 1px solid #e9d5ff;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(76, 29, 149, 0.08);
+}
+
+.details-summary h2 {
+  margin: 0 0 20px;
+  color: #4c1d95;
+  font-size: 22px;
+  text-align: center;
+}
+
+/* Two columns, two rows */
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 24px;
+  text-align: left;
+}
+
+.details-grid > div {
+  padding: 14px 16px;
+  background: #f5f3ff;
+  border-left: 4px solid #7c3aed;
+  border-radius: 8px;
+  color: #334155;
+  font-size: 15px;
+}
+
+/* Green accent for right column */
+.details-grid > div:nth-child(even) {
+  background: #ecfdf5;
+  border-left-color: #10b981;
+}
+
+.details-grid strong {
+  color: #312e81;
+}
+
+/* Responsive layout */
+@media (max-width: 650px) {
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================
+   AutoQuote Navigation Header
+   ========================================= */
+
+.site-header {
+  width: 100%;
+  background: linear-gradient(90deg, #6d28d9, #312e81);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(49, 46, 129, 0.15);
+}
+
+.header-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 18px 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.site-logo {
+  color: #ffffff;
+  font-size: 27px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.site-logo span {
+  color: #86efac;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.site-nav span {
+  white-space: nowrap;
+}
+
+/* Responsive navigation */
+@media (max-width: 650px) {
+  .header-content {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .site-nav {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    font-size: 12px;
+  }
+}
+
+/* Soft purple background for the main application */
+main {
+  background: linear-gradient(
+    180deg,
+    #f0eaff 0%,
+    #f8f5ff 45%,
+    #f8fafc 100%
+  );
+  border-radius: 20px;
+}
+
+/* =========================================
+   Modern Professional Homepage Illustrations
+   ========================================= */
+
+main {
+  background-image:
+    url('/illustrations/car.svg'),
+    url('/illustrations/shield.svg'),
+    linear-gradient(
+      180deg,
+      #f0eaff 0%,
+      #f8f5ff 45%,
+      #f8fafc 100%
+    );
+
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat;
+
+  background-position:
+  left 20px top 115px,
+  right 20px top 115px,
+  center;
+
+  background-size:
+    190px auto,
+    140px auto,
+    cover;
+}
+
+/* Hide decorative illustrations on smaller screens */
+@media (max-width: 900px) {
+  main {
+    background-image: linear-gradient(
+      180deg,
+      #f0eaff 0%,
+      #f8f5ff 45%,
+      #f8fafc 100%
+    );
+  }
+}
