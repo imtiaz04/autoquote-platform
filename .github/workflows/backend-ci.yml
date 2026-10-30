@@ -25,7 +25,7 @@ jobs:
   # ==========================================
 
   frontend:
-    name: "Frontend - Lint and Production Build"
+    name: "1. Frontend - Lint and Production Build"
     runs-on: ubuntu-latest
 
     defaults:
@@ -66,7 +66,7 @@ jobs:
   # ==========================================
 
   validate:
-    name: "1. Validate Dependencies"
+    name: "2. Validate Dependencies"
     runs-on: ubuntu-latest
 
     defaults:
@@ -97,7 +97,7 @@ jobs:
   # ==========================================
 
   test:
-    name: "2. Run Automated Tests"
+    name: "3. Run Automated Tests"
     needs: validate
     runs-on: ubuntu-latest
 
@@ -129,7 +129,7 @@ jobs:
   # ==========================================
 
   build:
-    name: "3. Build Docker Image"
+    name: "4. Build Docker Image"
     needs: test
     runs-on: ubuntu-latest
 
@@ -171,7 +171,7 @@ jobs:
   # ==========================================
 
   security:
-    name: "4. Trivy Security Scan"
+    name: "5. Trivy Security Scan"
     needs: build
     runs-on: ubuntu-latest
 
@@ -202,7 +202,7 @@ jobs:
   # ==========================================
 
   publish:
-    name: "5. Publish Docker Image to GHCR"
+    name: "6. Publish Docker Image to GHCR"
     needs: security
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -251,14 +251,24 @@ jobs:
   # ==========================================
 
   deploy:
-    name: "6. Blue-Green Deployment"
+    name: "7. Blue-Green Deployment Validation"
     needs: [publish, frontend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, Linux, X64, autoquote-deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
 
-    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
 
     steps:
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Checkout Tested Commit
         uses: actions/checkout@v4
         with:
@@ -270,137 +280,158 @@ jobs:
           name: autoquote-frontend
           path: frontend/dist
 
-      - name: Verify Deployment Environment
+      - name: Initialize NGINX
         shell: bash
         run: |
           set -euo pipefail
 
-          echo "Runner: $(hostname)"
-          echo "User: $(whoami)"
+          sudo apt-get update
+          sudo apt-get install -y nginx
 
-          docker info >/dev/null
-          sudo -n /usr/sbin/nginx -t
+          sudo mkdir -p /var/www/autoquote
+          sudo cp -a frontend/dist/. /var/www/autoquote/
 
-          test -f /home/imtiaz/Documents/autoquote-platform/nginx/autoquote.conf
+          sudo rm -f /etc/nginx/sites-enabled/default
+          sudo rm -f /etc/nginx/sites-enabled/autoquote.conf
+
+          sudo ln -s "$GITHUB_WORKSPACE/nginx/autoquote.conf" \
+            /etc/nginx/sites-enabled/autoquote.conf
+
+          sudo nginx -t
+          sudo systemctl enable --now nginx
+
+      - name: Initialize Blue Backend
+        shell: bash
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          docker pull "ghcr.io/imtiaz04/autoquote-backend:${DEPLOY_SHA}"
+
+          docker run -d \
+            --name autoquote-blue \
+            -p 127.0.0.1:8004:8000 \
+            "ghcr.io/imtiaz04/autoquote-backend:${DEPLOY_SHA}"
+
+          for attempt in {1..12}; do
+            if curl --fail --silent --show-error --max-time 3 \
+              http://127.0.0.1:8004/healthz | \
+              grep -q '"status"[[:space:]]*:[[:space:]]*"healthy"'; then
+              echo "Blue backend is healthy."
+              break
+            fi
+
+            if [[ "$attempt" -eq 12 ]]; then
+              docker logs autoquote-blue
+              exit 1
+            fi
+
+            sleep 5
+          done
+
+          curl --fail --silent --show-error -D - -o /dev/null \
+            http://127.0.0.1:8080/healthz | \
+            grep -Eiq '^X-Active-Slot:[[:space:]]*blue[[:space:]]*\r?$'
 
       - name: Execute Blue-Green Deployment
         shell: bash
         env:
           DEPLOY_SHA: ${{ github.sha }}
-          AUTOQUOTE_NGINX_CONFIG: /home/imtiaz/Documents/autoquote-platform/nginx/autoquote.conf
+          AUTOQUOTE_NGINX_CONFIG: ${{ github.workspace }}/nginx/autoquote.conf
         run: |
           set -euo pipefail
-
           bash scripts/deploy.sh "$DEPLOY_SHA"
 
-      - name: Deploy React Frontend to NGINX
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          echo "Deploying React frontend..."
-
-          test -f frontend/dist/index.html
-          test -d /var/www/autoquote
-
-          cp -a frontend/dist/. /var/www/autoquote/
-
-          test -f /var/www/autoquote/index.html
-
-          echo "React frontend deployed successfully."
-
-  # ==========================================
-  # JOB 7: POST-DEPLOYMENT VERIFICATION
-  # ==========================================
-
-  verify:
-    name: "7. Post-Deployment Health Verification"
-    needs: deploy
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, Linux, X64, autoquote-deploy]
-
-    timeout-minutes: 5
-
-    steps:
-      - name: Verify React Frontend
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          echo "Verifying React frontend..."
-
-          test -f /var/www/autoquote/index.html
-
-          curl --fail --silent --show-error \
-            http://127.0.0.1:8080/ \
-            | grep -q 'id="root"'
-
-          echo "React frontend verification passed."
-
-      - name: Verify NGINX Health
+      - name: Verify Blue-Green Traffic Switch
         shell: bash
         run: |
           set -euo pipefail
 
           curl --fail --silent --show-error \
-            http://127.0.0.1:8080/healthz \
-            | grep -q '"status"[[:space:]]*:[[:space:]]*"healthy"'
+            http://127.0.0.1:8080/ | \
+            grep -q 'id="root"'
 
-          echo "NGINX health verification passed."
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8080/healthz | \
+            grep -q '"status"[[:space:]]*:[[:space:]]*"healthy"'
 
-      - name: Verify Active Deployment Slot
-        shell: bash
-        run: |
-          set -euo pipefail
+          curl --fail --silent --show-error -D - -o /dev/null \
+            http://127.0.0.1:8080/healthz | \
+            grep -Eiq '^X-Active-Slot:[[:space:]]*green[[:space:]]*\r?$'
 
-          HEADERS=$(curl --fail --silent --show-error \
-            -D - -o /dev/null \
-            http://127.0.0.1:8080/healthz)
-
-          echo "$HEADERS"
-
-          echo "$HEADERS" |
-            grep -Eiq '^X-Active-Slot:[[:space:]]*(blue|green)[[:space:]]*\r?$'
-
-          echo "Active deployment slot verified."
-
-      - name: Verify Blue and Green Containers
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          for CONTAINER in autoquote-blue autoquote-green; do
+          for container in autoquote-blue autoquote-green; do
             STATUS=$(docker inspect \
-              --format '{{.State.Health.Status}}' \
-              "$CONTAINER")
+              -f '{{.State.Health.Status}}' "$container")
 
-            echo "$CONTAINER: $STATUS"
-
-            test "$STATUS" = "healthy"
+            echo "$container: $STATUS"
+            test "$STATUS" = healthy
           done
 
-          echo "Both blue-green containers are healthy."
-
-      - name: Verify No Temporary Backups Remain
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          for CONTAINER in autoquote-blue-backup autoquote-green-backup; do
-            if docker container inspect "$CONTAINER" >/dev/null 2>&1; then
-              echo "Unexpected backup container remains: $CONTAINER"
+          for container in autoquote-blue-backup autoquote-green-backup; do
+            if docker container inspect "$container" >/dev/null 2>&1; then
+              echo "Unexpected backup container: $container"
               exit 1
             fi
           done
 
-          echo "No temporary deployment backups remain."
+          echo "Blue-Green traffic switching verified."
 
-      - name: Display Deployment Summary
+  # ==========================================
+  # JOB 8: DOCKER COMPOSE END-TO-END VALIDATION
+  # ==========================================
+
+  verify:
+    name: "8. Docker Compose and End-to-End Verification"
+    needs: deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Tested Commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build and Start Docker Compose Application
         shell: bash
         run: |
-          echo "AutoQuote deployment verification completed."
-          echo "Commit: ${{ github.sha }}"
-          docker ps \
-            --filter "name=autoquote-blue" \
-            --filter "name=autoquote-green" \
-            --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+          set -euo pipefail
+
+          docker compose up -d --build --wait
+          docker compose ps
+
+      - name: Verify Frontend and Backend
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8081/ | \
+            grep -q 'id="root"'
+
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8081/healthz | \
+            grep -q '"status"[[:space:]]*:[[:space:]]*"healthy"'
+
+      - name: Verify Insurance Quote Comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error \
+            -H 'Content-Type: application/json' \
+            -d '{"driver_age":30,"zip_code":"08830","vehicle_year":2022,"vehicle_make":"Toyota","vehicle_model":"Camry","coverage_type":"full"}' \
+            http://127.0.0.1:8081/quotes/compare \
+            | python3 -c 'import json,sys; data=json.load(sys.stdin); print(data); assert data'
+
+          echo "End-to-end quote comparison verified."
+
+      - name: Show Container Logs on Failure
+        if: failure()
+        run: docker compose logs --no-color --tail 100
+
+      - name: Stop Temporary Docker Compose Application
+        if: always()
+        run: docker compose down --remove-orphans
