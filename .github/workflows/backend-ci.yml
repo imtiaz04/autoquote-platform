@@ -20,6 +20,46 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # ==========================================
+  # FRONTEND CI - VALIDATE AND BUILD REACT
+  # ==========================================
+
+  frontend:
+    name: "Frontend - Lint and Production Build"
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build React Frontend
+        run: npm run build
+
+      - name: Upload Frontend Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoquote-frontend
+          path: frontend/dist/
+          if-no-files-found: error
+          retention-days: 1
+
 
   # ==========================================
   # JOB 1: VALIDATE DEPENDENCIES
@@ -212,7 +252,7 @@ jobs:
 
   deploy:
     name: "6. Blue-Green Deployment"
-    needs: publish
+    needs: [publish, frontend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, Linux, X64, autoquote-deploy]
 
@@ -223,6 +263,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - name: Download React Frontend Build
+        uses: actions/download-artifact@v4
+        with:
+          name: autoquote-frontend
+          path: frontend/dist
 
       - name: Verify Deployment Environment
         shell: bash
@@ -247,6 +293,22 @@ jobs:
 
           bash scripts/deploy.sh "$DEPLOY_SHA"
 
+      - name: Deploy React Frontend to NGINX
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Deploying React frontend..."
+
+          test -f frontend/dist/index.html
+          test -d /var/www/autoquote
+
+          cp -a frontend/dist/. /var/www/autoquote/
+
+          test -f /var/www/autoquote/index.html
+
+          echo "React frontend deployed successfully."
+
   # ==========================================
   # JOB 7: POST-DEPLOYMENT VERIFICATION
   # ==========================================
@@ -260,6 +322,21 @@ jobs:
     timeout-minutes: 5
 
     steps:
+      - name: Verify React Frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Verifying React frontend..."
+
+          test -f /var/www/autoquote/index.html
+
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8080/ \
+            | grep -q 'id="root"'
+
+          echo "React frontend verification passed."
+
       - name: Verify NGINX Health
         shell: bash
         run: |
