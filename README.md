@@ -4,7 +4,7 @@ AutoQuote is a full-stack auto insurance comparison application built with **Rea
 
 The application allows users to enter driver and vehicle information, select insurance coverage, and compare simulated premiums from three fictional insurance providers.
 
-The project demonstrates an end-to-end DevOps workflow covering application development, automated testing, containerization, vulnerability scanning, image publishing, CI/CD, and blue-green backend deployment.
+The project demonstrates a DevOps workflow covering application development, automated testing, containerization, vulnerability scanning, image publishing, CI/CD, Docker Compose, and Blue-Green backend deployment validation.
 
 > **Disclaimer:** AutoQuote is a demonstration project. All insurance providers and premiums are simulated. The application does not retrieve real insurance quotes or issue insurance policies.
 
@@ -31,18 +31,17 @@ The project demonstrates an end-to-end DevOps workflow covering application deve
 - Docker containerization.
 - Trivy container vulnerability scanning.
 - Docker image publishing to GitHub Container Registry (GHCR).
-- GitHub Actions CI/CD.
-- Self-hosted Ubuntu deployment runner.
-- Automated backend blue-green deployment.
-- Automated React frontend deployment.
+- GitHub Actions CI/CD using GitHub-hosted runners.
+- Automated Blue-Green backend deployment validation.
+- Docker Compose full-stack integration testing.
 - NGINX reverse proxy and frontend hosting.
-- Automated post-deployment verification.
+- Automated health and end-to-end verification.
 
 ### Project Status
 
 **Status: Implemented and Successfully Validated**
 
-The application has been tested through GitHub Actions and local browser-based testing.
+The application has been tested through GitHub Actions and local development.
 
 | Component | Status |
 |---|---|
@@ -53,17 +52,24 @@ The application has been tested through GitHub Actions and local browser-based t
 | Docker image build | Passed |
 | Trivy security scan | Passed |
 | GHCR image publishing | Passed |
-| Automated backend deployment | Passed |
-| Automated frontend deployment | Passed |
-| Post-deployment verification | Passed |
-| Local end-to-end browser testing | Passed |
+| Blue-Green deployment validation | Passed |
+| Docker Compose integration validation | Passed |
+| End-to-end verification | Passed |
+| Local browser testing | Passed |
 
-**Validated GitHub Actions execution:**
+### Validated GitHub Actions Execution
 
-- Workflow run: `#13`
-- Commit: `294c897`
-- Result: All eight jobs passed
-- Execution time: Approximately 2 minutes 7 seconds
+- **Workflow run:** #18
+- **Commit:** `4b9dd87`
+- **Result:** All eight jobs passed
+- **Execution time:** Approximately 3 minutes 19 seconds
+- **Runner:** GitHub-hosted Ubuntu
+
+Workflow execution:
+
+https://github.com/imtiaz04/autoquote-platform/actions/runs/41474182757
+
+> **Important:** GitHub Actions validates the deployment architecture using temporary GitHub-hosted runners. It does not deploy the application persistently to the developer's Ubuntu laptop.
 
 ---
 
@@ -79,13 +85,14 @@ The application has been tested through GitHub Actions and local browser-based t
 | Backend Framework | FastAPI | REST API |
 | Data Validation | Pydantic | Request validation |
 | Backend Testing | Pytest | Automated tests |
-| Containerization | Docker | Backend application packaging |
-| CI/CD | GitHub Actions | Automated build, test, and deployment |
+| Containerization | Docker | Application packaging |
+| Container Orchestration | Docker Compose | Local full-stack deployment |
+| CI/CD | GitHub Actions | Automated validation and image publishing |
+| CI/CD Runner | GitHub-hosted Ubuntu | Workflow execution |
 | Security | Trivy | Container vulnerability scanning |
 | Container Registry | GHCR | Docker image storage |
 | Web Server | NGINX | Frontend hosting and reverse proxy |
-| Deployment Strategy | Blue-Green | Backend release switching |
-| Deployment Runner | Self-Hosted Ubuntu Runner | Deployment execution |
+| Deployment Strategy | Blue-Green | Backend release switching and validation |
 | Automation | Bash | Deployment scripting |
 | Version Control | Git and GitHub | Source code management |
 
@@ -97,19 +104,21 @@ AutoQuote consists of three main application components:
 
 1. React frontend.
 2. FastAPI backend.
-3. NGINX reverse proxy for the deployed application.
+3. NGINX reverse proxy.
 
-### Production Architecture
+The application can be run using local development servers or Docker Compose.
+
+### Docker Compose Architecture
 
 ```mermaid
 flowchart TD
-    A["User / Browser"] --> B["NGINX :8080"]
+    A["User / Browser"] --> B["NGINX Container :8081"]
 
     B -->|"Serve static files"| C["React Frontend"]
 
     C -->|"POST /quotes/compare"| B
 
-    B -->|"API Proxy"| D["Active FastAPI Container"]
+    B -->|"API Proxy"| D["FastAPI Backend Container :8000"]
 
     D --> E["Pydantic Validation"]
 
@@ -132,23 +141,29 @@ flowchart TD
 2. NGINX serves the React frontend.
 3. The user enters driver, vehicle, and coverage information.
 4. React sends an API request to `/quotes/compare`.
-5. NGINX forwards the request to the active FastAPI container.
+5. NGINX forwards the request to FastAPI.
 6. Pydantic validates the submitted information.
 7. The backend calculates simulated insurance premiums.
 8. Three quotes are returned in ascending price order.
 9. React displays monthly and annual premiums.
 
-**Production application URL on the configured deployment host:**
+### Application URL
+
+When Docker Compose is running:
 
 ```text
-http://127.0.0.1:8080/
+http://127.0.0.1:8081/
 ```
+
+The application is available locally on port `8081`.
+
+The local Blue-Green demonstration uses a separate NGINX configuration on port `8080` and exposes the backend API rather than the complete React application.
 
 ---
 
 ## 4. CI/CD Pipeline
 
-AutoQuote uses GitHub Actions to automate frontend and backend validation, image publishing, and deployment.
+AutoQuote uses GitHub Actions to automate frontend and backend validation, Docker image building, vulnerability scanning, image publishing, and deployment verification.
 
 Workflow file:
 
@@ -162,26 +177,23 @@ Workflow file:
 flowchart TD
     A["Developer Pushes Code to GitHub"]
 
-    A --> B["Frontend CI"]
-    A --> C["1. Validate Backend Dependencies"]
+    A --> B["1. Frontend Lint and Build"]
+    A --> C["2. Validate Backend Dependencies"]
 
-    B --> B1["npm ci"]
-    B1 --> B2["ESLint"]
-    B2 --> B3["Vite Production Build"]
-    B3 --> B4["Upload Frontend Artifact"]
+    C --> D["3. Automated Backend Tests"]
 
-    C --> D["2. Automated Backend Tests"]
-    D --> E["3. Docker Image Build"]
-    E --> F["4. Trivy Security Scan"]
-    F --> G["5. Publish Image to GHCR"]
+    D --> E["4. Docker Image Build"]
 
-    B4 --> H["6. Automated Deployment"]
+    E --> F["5. Trivy Security Scan"]
+
+    F --> G["6. Publish Image to GHCR"]
+
+    B --> H["7. Blue-Green Deployment Validation"]
     G --> H
 
-    H --> I["Self-Hosted Ubuntu Runner"]
-    I --> J["Backend Blue-Green Deployment"]
-    J --> K["React Frontend Deployment"]
-    K --> L["7. Post-Deployment Verification"]
+    H --> I["8. Docker Compose and End-to-End Verification"]
+
+    I --> J["Workflow Completed"]
 ```
 
 ### GitHub Actions Jobs
@@ -190,18 +202,40 @@ The workflow contains eight jobs.
 
 | Job | Responsibility |
 |---|---|
-| Frontend | Install dependencies, lint, build React, and upload artifact |
-| 1. Validate Dependencies | Install and validate Python dependencies |
-| 2. Automated Tests | Execute backend tests using Pytest |
-| 3. Build Docker Image | Build the backend Docker image |
-| 4. Trivy Security Scan | Scan the Docker image for vulnerabilities |
-| 5. Publish to GHCR | Publish the validated image |
-| 6. Automated Deployment | Deploy backend and frontend |
-| 7. Health Verification | Verify application health after deployment |
+| 1. Frontend — Lint and Production Build | Install frontend dependencies, run ESLint, and build React |
+| 2. Validate Dependencies | Install and validate Python dependencies |
+| 3. Run Automated Tests | Execute backend tests using Pytest |
+| 4. Build Docker Image | Build the backend Docker image |
+| 5. Trivy Security Scan | Scan the Docker image for vulnerabilities |
+| 6. Publish Docker Image to GHCR | Publish the validated backend image |
+| 7. Blue-Green Deployment Validation | Validate backend deployment and traffic switching |
+| 8. Docker Compose and End-to-End Verification | Validate the complete containerized application |
 
-The frontend job runs alongside the backend validation pipeline.
+### Workflow Triggers
 
-Deployment waits for the required frontend artifact and published backend image.
+The workflow runs on:
+
+- Pushes to `main`.
+- Pull requests targeting `main`.
+- Manual execution using `workflow_dispatch`.
+
+### Pull Request Execution
+
+For pull requests, the workflow runs the first five jobs:
+
+1. Frontend lint and production build.
+2. Dependency validation.
+3. Automated backend tests.
+4. Docker image build.
+5. Trivy security scan.
+
+Publishing and deployment validation jobs are not executed for pull requests.
+
+### Main Branch Execution
+
+On pushes to `main`, all eight jobs execute.
+
+The workflow validates the application before publishing the backend Docker image to GHCR.
 
 ### Frontend CI
 
@@ -213,7 +247,11 @@ npm run lint
 npm run build
 ```
 
-The generated `frontend/dist/` directory is uploaded as a GitHub Actions artifact.
+The production build is generated in:
+
+```text
+frontend/dist/
+```
 
 ### Backend CI
 
@@ -231,79 +269,179 @@ Docker images are published using the Git commit SHA:
 ghcr.io/imtiaz04/autoquote-backend:<commit-sha>
 ```
 
-### Automated Deployment
+### Blue-Green Deployment Validation
 
-The deployment job executes on a configured self-hosted Ubuntu runner.
+The Blue-Green validation job runs on a temporary GitHub-hosted Ubuntu runner.
 
-It:
+It validates the backend deployment process, including container startup, health checks, and NGINX traffic switching.
 
-1. Downloads the React production build artifact.
-2. Pulls the published backend Docker image.
-3. Executes the backend deployment script.
-4. Performs backend blue-green switching.
-5. Deploys the React production files to NGINX.
+The deployment validation uses the published backend Docker image.
 
-### Post-Deployment Verification
+This job demonstrates that the Blue-Green deployment mechanism works in the CI environment.
 
-The final job verifies:
+**It does not update the running application on the developer's laptop.**
 
+### Docker Compose and End-to-End Verification
+
+The final job validates the complete application using Docker Compose.
+
+The verification covers:
+
+- Backend container startup.
+- Backend health checks.
+- NGINX availability.
 - React frontend availability.
-- Backend `/healthz` response.
-- Active backend deployment slot.
-- Docker container health.
-- Cleanup of temporary deployment containers.
+- Communication between NGINX and FastAPI.
+- Insurance comparison API functionality.
 
-**Important:** The backend uses blue-green deployment. The frontend uses direct static-file deployment.
+Temporary CI containers are discarded when the GitHub-hosted runner finishes.
+
+### GitHub-Hosted Runner
+
+All eight jobs use GitHub-hosted Ubuntu runners.
+
+```yaml
+runs-on: ubuntu-latest
+```
+
+GitHub provisions temporary runner environments for workflow execution.
+
+Advantages for this project include:
+
+- No self-hosted runner installation.
+- No runner maintenance.
+- Clean execution environments.
+- Reproducible pipeline execution.
+- No dependency on the developer's laptop being online.
+
+### CI/CD Limitation
+
+The current workflow validates deployment but does not maintain a persistent production deployment.
+
+A separate deployment target would be required for continuous hosting.
 
 ---
 
 ## 5. Deployment Architecture
 
-AutoQuote uses NGINX and two backend Docker containers.
+AutoQuote supports two separate containerized deployment demonstrations.
 
-### Production Port Configuration
+### Deployment Options
 
-| Component | Address / Port |
-|---|---|
-| NGINX | `127.0.0.1:8080` |
-| BLUE Backend | `127.0.0.1:8004` |
-| GREEN Backend | `127.0.0.1:8005` |
-| Backend Container Internal Port | `8000` |
-| React Production Files | `/var/www/autoquote/` |
+| Deployment | Purpose | Port |
+|---|---|---|
+| Docker Compose | Complete React + FastAPI application | 8081 |
+| Local Blue-Green | Backend deployment and NGINX traffic switching | 8080 |
 
-### Deployment Diagram
+These configurations are independent.
+
+### A. Docker Compose Full-Stack Deployment
+
+Docker Compose runs:
+
+- FastAPI backend container.
+- NGINX container serving the React production build.
+- Internal Docker network connecting both services.
+
+Architecture:
 
 ```mermaid
 flowchart TD
-    A["GitHub Actions"] --> B["Self-Hosted Ubuntu Runner"]
+    A["Browser"] --> B["localhost:8081"]
 
-    C["GHCR"] --> D["Backend Deployment Script"]
+    B --> C["NGINX Container"]
 
-    B --> D
+    C --> D["React Static Files"]
 
-    D --> E["BLUE Backend :8004"]
-    D --> F["GREEN Backend :8005"]
+    C -->|"API Requests"| E["FastAPI Backend Container"]
 
-    B --> G["React Production Build"]
-
-    G --> H["NGINX :8080"]
-
-    E --> H
-    F --> H
-
-    I["Browser"] --> H
+    E --> F["Insurance Quote Service"]
 ```
 
-### Blue-Green Backend Deployment
+Docker Compose configuration:
+
+```text
+compose.yaml
+```
+
+NGINX configuration:
+
+```text
+nginx/compose.conf
+```
+
+### Docker Compose Port Configuration
+
+| Component | Address / Port |
+|---|---|
+| Browser access | `127.0.0.1:8081` |
+| NGINX container | `80` |
+| FastAPI container | `8000` |
+| Backend service name | `backend` |
+
+The backend communicates with NGINX through Docker's internal network.
+
+The backend does not require a separate public host port.
+
+### NGINX Request Routing
+
+The NGINX configuration uses three main routes:
+
+| Route | Responsibility |
+|---|---|
+| `/` | Serve React production files |
+| `/quotes/` | Forward insurance comparison requests to FastAPI |
+| `/healthz` | Forward backend health checks |
+
+The React application is served from:
+
+```text
+/usr/share/nginx/html
+```
+
+NGINX forwards API requests to:
+
+```text
+http://backend:8000
+```
+
+### B. Local Blue-Green Backend Deployment
+
+The Blue-Green deployment demonstrates backend release switching.
 
 Two Docker containers provide separate backend deployment slots.
 
-| Slot | Container | Port |
+| Slot | Container | Host Port |
 |---|---|---|
 | BLUE | `autoquote-blue` | 8004 |
 | GREEN | `autoquote-green` | 8005 |
 
-Deployment script:
+Host NGINX listens on:
+
+```text
+127.0.0.1:8080
+```
+
+Architecture:
+
+```mermaid
+flowchart TD
+    A["API Client"] --> B["Host NGINX :8080"]
+
+    B -->|"Active Slot"| C["BLUE Backend :8004"]
+
+    B -.->|"Alternative Slot"| D["GREEN Backend :8005"]
+
+    E["Deployment Script"] --> C
+    E --> D
+    E --> B
+```
+
+Only the active backend slot receives traffic through NGINX.
+
+The inactive slot can be used for a new release.
+
+### Deployment Script
 
 ```text
 scripts/deploy.sh
@@ -311,32 +449,42 @@ scripts/deploy.sh
 
 The deployment process:
 
-1. Identifies the active backend slot.
-2. Selects the inactive slot.
-3. Pulls the new Docker image.
-4. Starts the replacement container.
-5. Waits for the backend health check.
-6. Updates NGINX to use the new backend.
-7. Validates and reloads NGINX.
-8. Verifies application health.
+1. Selects the target deployment slot.
+2. Pulls the required Docker image.
+3. Starts the replacement backend container.
+4. Waits for the backend health check.
+5. Updates NGINX routing.
+6. Validates the NGINX configuration.
+7. Reloads NGINX.
+8. Verifies backend availability.
 
-The deployment script includes backend recovery logic for supported deployment failures.
+The script includes recovery logic for supported deployment failures.
 
-### React Frontend Deployment
+### NGINX Configuration
 
-The React application is built using Vite.
-
-GitHub Actions uploads the production build as an artifact.
-
-During deployment, the files are copied into:
+The repository provides a reusable configuration template:
 
 ```text
-/var/www/autoquote/
+nginx/autoquote.conf.example
 ```
 
-NGINX serves the React application directly.
+The local runtime configuration is:
 
-Frontend deployment does not use blue-green switching or automatic frontend rollback.
+```text
+nginx/autoquote.conf
+```
+
+The runtime file is machine-specific and is excluded from Git tracking.
+
+This prevents local Blue-Green slot changes from creating unnecessary Git modifications.
+
+### Important Architecture Distinction
+
+The Docker Compose deployment on port `8081` serves the complete application.
+
+The local Blue-Green deployment on port `8080` demonstrates backend traffic switching.
+
+The Blue-Green NGINX configuration does not serve the React frontend.
 
 ---
 
@@ -356,6 +504,7 @@ autoquote-platform/
 │   │   ├── App.css
 │   │   ├── index.css
 │   │   └── main.jsx
+│   ├── Dockerfile
 │   ├── package.json
 │   ├── package-lock.json
 │   └── vite.config.js
@@ -373,46 +522,52 @@ autoquote-platform/
 │   └── requirements-dev.txt
 │
 ├── nginx/
-│   └── autoquote.conf.example
+│   ├── autoquote.conf.example
+│   └── compose.conf
 │
 ├── scripts/
 │   └── deploy.sh
 │
+├── compose.yaml
 ├── .gitignore
 └── README.md
 ```
+
+The local runtime file `nginx/autoquote.conf` is intentionally excluded from Git tracking.
 
 ---
 
 ## 7. Getting Started — Clone and Run AutoQuote Locally
 
-This section explains how a new developer can clone and run the complete AutoQuote application on Ubuntu.
+This section explains how a new developer can clone and run AutoQuote on Ubuntu.
 
-**Local development does not require Docker, NGINX, or a GitHub Actions runner.**
+There are two supported approaches:
+
+- **Option A:** Local development using React/Vite and FastAPI.
+- **Option B:** Full-stack deployment using Docker Compose.
 
 ### Local Development Ports
 
 | Component | Port |
 |---|---|
-| React / Vite Frontend | 5173 |
-| FastAPI Backend | 8001 |
-| Production NGINX | 8080 |
-| Production BLUE Backend | 8004 |
-| Production GREEN Backend | 8005 |
+| React / Vite frontend | 5173 |
+| FastAPI backend | 8001 |
+| Docker Compose application | 8081 |
+| Local Blue-Green NGINX | 8080 |
+| BLUE backend | 8004 |
+| GREEN backend | 8005 |
 
-Only ports **5173 and 8001** are required for local development.
+Only ports `5173` and `8001` are required for local development without Docker.
 
 ### Step 1 — Install Prerequisites
 
-Required tools:
+For local development, install:
 
-- Git
-- Python 3.12
-- Python virtual environment support
-- Node.js 22
-- npm
-
-On Ubuntu, install Git and Python virtual environment support if they are not already installed.
+- Git.
+- Python 3.12.
+- Python virtual environment support.
+- Node.js 22.
+- npm.
 
 Verify the required tools:
 
@@ -423,72 +578,52 @@ node --version
 npm --version
 ```
 
-All four commands should display installed versions.
+For Docker Compose deployment, install Docker Engine with Docker Compose support.
 
-If a command is unavailable, install the corresponding tool before continuing.
+Verify Docker:
+
+```bash
+docker --version
+docker compose version
+```
 
 ### Step 2 — Clone the Repository
 
-Open a terminal and run:
-
 ```bash
 git clone https://github.com/imtiaz04/autoquote-platform.git
+
 cd autoquote-platform
 ```
 
-All subsequent setup commands assume you are in the repository root unless otherwise stated.
+All subsequent commands assume the repository root unless otherwise stated.
 
-### Step 3 — Check Port Availability
+---
 
-Before starting the application, check whether ports 8001 and 5173 are already in use.
+### Option A — Run Using React and FastAPI
+
+#### Step 3 — Check Port Availability
 
 ```bash
 sudo ss -ltnp '( sport = :8001 or sport = :5173 )'
 ```
 
-If there is no output, neither port currently has a listening process.
-
 If a port is occupied, identify the process before making changes.
-
-To check port 8001:
-
-```bash
-sudo ss -ltnp '( sport = :8001 )'
-```
-
-To check port 5173:
-
-```bash
-sudo ss -ltnp '( sport = :5173 )'
-```
 
 Do not stop unrelated applications or Docker containers.
 
-If port 8001 is unavailable, choose another free port and update both the FastAPI startup command and the proxy target in `frontend/vite.config.js`.
-
-### Step 4 — Create the Python Virtual Environment
-
-From the repository root:
+#### Step 4 — Create a Python Virtual Environment
 
 ```bash
 python3.12 -m venv .venv
 ```
 
-This creates an isolated Python environment for AutoQuote.
-
-### Step 5 — Install Backend Dependencies
-
-Run:
+#### Step 5 — Install Backend Dependencies
 
 ```bash
 ./.venv/bin/python -m pip install -r backend/requirements-dev.txt
 ```
 
-This installs the dependencies required to run and test the FastAPI backend.
-
-### Step 6 — Install Frontend Dependencies
-
-From the repository root:
+#### Step 6 — Install Frontend Dependencies
 
 ```bash
 cd frontend
@@ -496,17 +631,9 @@ npm ci
 cd ..
 ```
 
-The frontend and backend dependencies are now installed.
+#### Step 7 — Start FastAPI
 
-### Step 7 — Start the Application
-
-There are two ways to start AutoQuote.
-
-#### Option A — Two Terminals (Recommended)
-
-This is the recommended approach because frontend and backend logs remain separate.
-
-**Terminal 1 — Start FastAPI**
+Open Terminal 1.
 
 From the repository root:
 
@@ -517,95 +644,48 @@ From the repository root:
   --port 8001
 ```
 
-Expected output:
+Expected output includes:
 
 ```text
 INFO: Application startup complete.
-INFO: Uvicorn running on http://127.0.0.1:8001
 ```
 
 Keep Terminal 1 running.
 
-**Terminal 2 — Start React**
+#### Step 8 — Start React
 
-Open a second terminal.
+Open Terminal 2.
 
-Navigate to the cloned repository's `frontend` directory:
+Navigate to the frontend directory:
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Expected output:
-
-```text
-VITE ready
-Local: http://localhost:5173/
-```
-
-Keep Terminal 2 running.
-
-**Note:** If the second terminal opens outside the repository, navigate to the cloned repository first.
-
-#### Option B — Start Both Applications with One Command
-
-After completing dependency installation, you can start the frontend and backend together.
-
-Run the following from the repository root:
-
-```bash
-bash -c '
-set -e
-./.venv/bin/python -m uvicorn app.main:app \
-  --app-dir backend \
-  --host 127.0.0.1 \
-  --port 8001 &
-backend_pid=$!
-
-cleanup() {
-  kill "$backend_pid" 2>/dev/null || true
-  wait "$backend_pid" 2>/dev/null || true
-}
-trap cleanup EXIT
-
-cd frontend
-npm run dev
-'
-```
-
-This command:
-
-1. Starts FastAPI on port 8001.
-2. Starts the React development server.
-3. Displays application logs in the terminal.
-4. Attempts to stop the background FastAPI process when the session exits.
-
-Use **Ctrl+C** to stop the session.
-
-This option assumes that dependencies are already installed and the required ports are available.
-
-For troubleshooting, use Option A.
-
-### Step 8 — Open AutoQuote
-
-Open the frontend in your browser:
+The development server normally starts at:
 
 ```text
 http://localhost:5173/
 ```
 
-You should see the AutoQuote insurance comparison interface.
+Keep Terminal 2 running.
+
+#### Step 9 — Open AutoQuote
+
+Open:
+
+```text
+http://localhost:5173/
+```
 
 Enter driver and vehicle details, select a coverage type, and click **Compare Quotes**.
 
 The application should display three simulated insurance quotes.
 
-### Step 9 — Verify Backend Health
+#### Step 10 — Verify Backend Health
 
-Open another terminal.
-
-Run:
+Open another terminal:
 
 ```bash
 curl http://127.0.0.1:8001/healthz
@@ -619,9 +699,7 @@ Expected response:
 }
 ```
 
-### Step 10 — Test the Insurance Comparison API
-
-Run:
+#### Step 11 — Test the Insurance Comparison API
 
 ```bash
 curl -X POST http://127.0.0.1:8001/quotes/compare \
@@ -636,51 +714,20 @@ curl -X POST http://127.0.0.1:8001/quotes/compare \
   }'
 ```
 
-Expected result:
-
-The API returns three simulated insurance quotes in JSON format.
-
-### Step 11 — Verify the React Application
-
-Open:
-
-```text
-http://localhost:5173/
-```
-
-Test with the following example:
-
-| Field | Example |
-|---|---|
-| Driver Age | 25 |
-| ZIP Code | 08830 |
-| Vehicle Year | 2022 |
-| Vehicle Make | Toyota |
-| Vehicle Model | Camry |
-| Coverage Type | Full Coverage |
-
-Click **Compare Quotes**.
-
-Expected results:
-
-| Provider | Monthly Premium | Annual Premium |
-|---|---:|---:|
-| Demo Insurer C | $180 | $2,160 |
-| Demo Insurer A | $200 | $2,400 |
-| Demo Insurer B | $230 | $2,760 |
-
-The lowest-priced provider should be highlighted.
-
-These results were verified during local browser-based testing.
+The API should return three simulated insurance quotes.
 
 ### Local Development Architecture
 
 ```mermaid
 flowchart LR
     A["Browser"] --> B["React / Vite :5173"]
+
     B -->|"Proxy /quotes"| C["FastAPI :8001"]
+
     C --> D["Insurance Quote Service"]
+
     D --> C
+
     C --> B
 ```
 
@@ -692,38 +739,87 @@ The development proxy is configured in:
 frontend/vite.config.js
 ```
 
-Configuration:
+The `/quotes` proxy target should point to:
 
-```javascript
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
-
-export default defineConfig({
-  plugins: [react()],
-
-  server: {
-    proxy: {
-      '/quotes': {
-        target: 'http://127.0.0.1:8001',
-        changeOrigin: true,
-      },
-    },
-  },
-})
+```text
+http://127.0.0.1:8001
 ```
-
-The proxy forwards frontend requests beginning with `/quotes` to FastAPI on port 8001.
 
 This allows React and FastAPI to communicate locally without NGINX.
 
-### Stopping the Application
+### Stopping Local Development
 
-If using two terminals:
+Press `Ctrl+C` in the React terminal.
 
-- Press `Ctrl+C` in the React terminal.
-- Press `Ctrl+C` in the FastAPI terminal.
+Press `Ctrl+C` in the FastAPI terminal.
 
-If using the single-command method, press `Ctrl+C` to stop the development session.
+---
+
+### Option B — Run the Complete Application with Docker Compose
+
+This approach runs the frontend and backend as containers.
+
+Docker Engine and Docker Compose are required.
+
+#### Step 1 — Build and Start the Application
+
+From the repository root:
+
+```bash
+docker compose up -d --build
+```
+
+Docker Compose builds and starts the application containers.
+
+#### Step 2 — Check Container Status
+
+```bash
+docker compose ps
+```
+
+Verify that the backend and NGINX services are running.
+
+#### Step 3 — Verify Backend Health
+
+```bash
+curl http://127.0.0.1:8081/healthz
+```
+
+Expected response:
+
+```json
+{
+  "status": "healthy"
+}
+```
+
+#### Step 4 — Open the Application
+
+Open:
+
+```text
+http://127.0.0.1:8081/
+```
+
+The React insurance comparison interface should load.
+
+Submit valid driver and vehicle information to verify the complete application.
+
+#### Step 5 — View Container Logs
+
+```bash
+docker compose logs
+```
+
+#### Step 6 — Stop the Application
+
+```bash
+docker compose down
+```
+
+This stops and removes the Compose-managed containers and network.
+
+It does not remove the Docker images or application source files.
 
 ---
 
@@ -798,9 +894,19 @@ liability
 full
 ```
 
-Invalid requests return HTTP 422.
+Invalid requests return HTTP `422`.
 
 All premiums use simulated pricing rules.
+
+### Example Insurance Comparison
+
+| Provider | Monthly Premium | Annual Premium |
+|---|---:|---:|
+| Demo Insurer C | $180 | $2,160 |
+| Demo Insurer A | $200 | $2,400 |
+| Demo Insurer B | $230 | $2,760 |
+
+The lowest-priced provider is highlighted in the React interface.
 
 ---
 
@@ -830,8 +936,11 @@ From the repository root:
 
 ```bash
 cd frontend
+
 npm ci
+
 npm run lint
+
 npm run build
 ```
 
@@ -841,13 +950,19 @@ The production build is generated in:
 frontend/dist/
 ```
 
+### CI/CD Testing
+
+The GitHub Actions workflow automatically executes the relevant validation jobs when code is pushed or a pull request is opened.
+
+A successful pipeline confirms that the configured checks passed for that commit.
+
 ---
 
 ## 10. Run the Backend with Docker
 
 Docker can run the FastAPI backend independently.
 
-Docker is optional for local development but required for the production-style deployment workflow.
+This is useful for testing the backend container without starting the complete application.
 
 ### Build the Docker Image
 
@@ -873,7 +988,7 @@ Port mapping:
 | Host | 8001 |
 | Container | 8000 |
 
-**Important:** Stop any locally running FastAPI process on port 8001 before starting this container.
+**Important:** Stop any locally running FastAPI process on port `8001` before starting this container.
 
 ### Verify the Docker Container
 
@@ -891,101 +1006,140 @@ Expected response:
 
 ---
 
-## 11. Reproducing the CI/CD Deployment
+## 11. Reproducing the CI/CD Workflow
 
-The application can be run locally using React and FastAPI.
+The GitHub Actions workflow uses GitHub-hosted Ubuntu runners.
 
-Reproducing the automated deployment requires additional infrastructure configuration.
+A self-hosted runner is not required.
 
-### Deployment Prerequisites
+### Prerequisites
 
-- Ubuntu Linux deployment host.
-- Docker Engine.
-- NGINX.
-- GitHub Actions self-hosted runner.
-- GitHub repository with Actions enabled.
-- Access to the configured GHCR container image.
-- Required Docker and NGINX permissions.
-- Frontend deployment directory.
+To reproduce the CI/CD workflow in your own repository:
 
-### Self-Hosted Runner
+- A GitHub account.
+- A GitHub repository containing the AutoQuote project.
+- GitHub Actions enabled.
+- Appropriate repository permissions for workflow execution.
+- GitHub Container Registry access for image publishing.
 
-The deployment workflow uses a runner with these labels:
+### GitHub Actions Workflow
 
-```yaml
-runs-on:
-  - self-hosted
-  - Linux
-  - X64
-  - autoquote-deploy
-```
-
-The runner must be registered with the repository and configured with the necessary deployment permissions.
-
-### NGINX Configuration
-
-The repository includes:
+Workflow file:
 
 ```text
-nginx/autoquote.conf.example
+.github/workflows/backend-ci.yml
 ```
 
-Create a local configuration:
+All jobs execute on:
 
-```bash
-cp nginx/autoquote.conf.example nginx/autoquote.conf
+```yaml
+runs-on: ubuntu-latest
 ```
 
-Review and adapt the configuration for the deployment environment.
+### Workflow Execution
 
-NGINX is responsible for:
+The workflow supports:
 
-- Serving the React frontend.
-- Forwarding API requests to FastAPI.
-- Routing backend traffic to BLUE or GREEN.
-- Exposing the application through port 8080.
+- Push to `main`.
+- Pull request to `main`.
+- Manual workflow dispatch.
 
-The configuration must be installed or linked into the appropriate NGINX site configuration directory for the target host.
+### Reproducing the Pipeline
 
-### Environment-Specific Settings
+1. Fork or clone the repository.
+2. Configure the workflow for your repository and container registry.
+3. Ensure GitHub Actions is enabled.
+4. Push changes to `main` or trigger the workflow manually.
+5. Open the GitHub Actions tab.
+6. Review the eight workflow jobs.
+7. Inspect logs and verification results.
 
-Before reproducing automated deployment, review:
+### GHCR Image Publishing
 
-- GitHub repository and GHCR image names.
-- Self-hosted runner registration and labels.
-- Docker permissions.
-- NGINX configuration paths.
-- Deployment script paths.
-- Frontend destination directory.
-- NGINX reload permissions.
+The workflow publishes the backend Docker image to GitHub Container Registry.
 
-The current deployment was validated on a configured Ubuntu laptop.
+Image naming convention:
 
-**Important:** The GitHub Actions workflow automates application deployment after the deployment host has been configured.
+```text
+ghcr.io/imtiaz04/autoquote-backend:<commit-sha>
+```
 
-The project does not automatically provision a new machine, install Docker or NGINX, or register a self-hosted runner.
+If using a fork, update repository-specific image references and permissions as required.
 
-Those infrastructure prerequisites must be configured separately.
+### Deployment Validation
+
+The Blue-Green and Docker Compose verification jobs run on temporary GitHub-hosted runners.
+
+They validate the deployment architecture without requiring a persistent deployment server.
+
+### Persistent Deployment
+
+The current workflow does not automatically deploy to the developer's Ubuntu laptop.
+
+To maintain a continuously available application, a separate persistent deployment environment would be required.
+
+That is outside the current project scope.
 
 ---
 
 ## 12. Deployment Verification
 
-After automated deployment, verify the application through NGINX.
+AutoQuote provides separate verification methods for Docker Compose and local Blue-Green deployment.
 
-### Verify the React Frontend
+### A. Verify Docker Compose
+
+#### Verify Containers
+
+```bash
+docker compose ps
+```
+
+#### Verify Backend Health
+
+```bash
+curl -i http://127.0.0.1:8081/healthz
+```
+
+Expected response includes:
+
+```text
+HTTP/1.1 200 OK
+```
+
+Expected response body:
+
+```json
+{
+  "status": "healthy"
+}
+```
+
+#### Verify React Frontend
 
 Open:
 
 ```text
-http://127.0.0.1:8080/
+http://127.0.0.1:8081/
 ```
 
 Confirm that the React insurance comparison interface loads.
 
-### Verify Backend Health
+#### Verify Insurance Comparison
 
-Run:
+Submit valid driver and vehicle information.
+
+Confirm that:
+
+1. The API request completes.
+2. Three simulated insurance providers appear.
+3. Monthly and annual premiums are displayed.
+4. The lowest-priced provider is highlighted.
+
+### B. Verify Local Blue-Green Backend
+
+This section applies only when the separate local Blue-Green environment has been configured.
+
+#### Verify NGINX Routing
 
 ```bash
 curl -i http://127.0.0.1:8080/healthz
@@ -1000,15 +1154,7 @@ X-Active-Slot: blue
 
 The active slot may be `blue` or `green`.
 
-Expected response body:
-
-```json
-{
-  "status": "healthy"
-}
-```
-
-### Verify Docker Containers
+#### Verify Backend Containers
 
 ```bash
 docker ps \
@@ -1017,18 +1163,24 @@ docker ps \
   --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 ```
 
-Both backend containers should be healthy after a successful deployment.
+Verify that the expected backend containers are running and healthy.
 
-### Verify Insurance Comparison
+### C. Verify GitHub Actions
 
-Open the deployed React application and submit valid driver and vehicle information.
+Open the GitHub Actions workflow execution.
 
 Confirm that:
 
-1. The API request completes.
-2. Three simulated insurance providers appear.
-3. Monthly and annual premiums are displayed.
-4. The lowest-priced provider is highlighted.
+- Frontend validation passed.
+- Backend dependency validation passed.
+- Automated tests passed.
+- Docker image build passed.
+- Trivy scan passed.
+- GHCR publishing passed.
+- Blue-Green deployment validation passed.
+- Docker Compose and end-to-end verification passed.
+
+The deployment verification jobs run on GitHub-hosted infrastructure and do not modify the local Ubuntu deployment.
 
 ---
 
@@ -1040,6 +1192,12 @@ Check the required local development ports:
 
 ```bash
 sudo ss -ltnp '( sport = :8001 or sport = :5173 )'
+```
+
+For Docker Compose, check port `8081`:
+
+```bash
+sudo ss -ltnp '( sport = :8081 )'
 ```
 
 Identify the process using the occupied port before making changes.
@@ -1054,7 +1212,7 @@ Verify the Python environment:
 ./.venv/bin/python --version
 ```
 
-If `.venv` does not exist, create it:
+If `.venv` does not exist:
 
 ```bash
 python3.12 -m venv .venv
@@ -1110,24 +1268,83 @@ http://127.0.0.1:8001
 
 Restart the Vite development server after changing its configuration.
 
+### Docker Compose Application Does Not Start
+
+Check the containers:
+
+```bash
+docker compose ps
+```
+
+Review the logs:
+
+```bash
+docker compose logs
+```
+
+Verify that port `8081` is available.
+
+### Docker Compose Frontend Loads but API Fails
+
+Check backend health:
+
+```bash
+curl http://127.0.0.1:8081/healthz
+```
+
+Review the backend logs:
+
+```bash
+docker compose logs backend
+```
+
+Review the NGINX logs:
+
+```bash
+docker compose logs nginx
+```
+
+Verify the NGINX routing configuration:
+
+```text
+nginx/compose.conf
+```
+
 ### HTTP 422 Error
 
-HTTP 422 indicates that the submitted request failed validation.
+HTTP `422` indicates that the submitted request failed validation.
 
 Verify the required fields and supported coverage types.
 
-### GitHub Actions Deployment Does Not Start
+### GitHub Actions Workflow Fails
+
+Open the failed workflow execution in GitHub Actions.
 
 Check:
 
-- Self-hosted runner availability.
-- Runner labels.
-- Required workflow dependencies.
-- Docker access.
-- NGINX permissions.
-- GHCR image availability.
+- The failed job and step.
+- Python dependency installation.
+- Pytest results.
+- Frontend lint or build errors.
+- Docker image build errors.
+- Trivy security scan findings.
+- GHCR publishing permissions.
+- Blue-Green validation logs.
+- Docker Compose integration test logs.
 
-The deployment job requires a correctly configured self-hosted runner.
+The workflow uses GitHub-hosted runners.
+
+Self-hosted runner registration and labels are not required.
+
+### Local Blue-Green NGINX Fails
+
+Verify the local NGINX configuration.
+
+Check that the active backend container is running and healthy.
+
+Review the configured upstream port.
+
+The local runtime configuration is machine-specific and should not be committed to Git.
 
 ---
 
@@ -1151,13 +1368,21 @@ Workflow permissions are configured for the required repository and container re
 
 ### Deployment Health Checks
 
-The deployment process validates backend health before switching traffic.
+The Blue-Green deployment process validates backend health before switching traffic.
+
+Docker Compose verification also checks backend availability.
 
 ### Configuration and Credentials
 
 Environment-specific configuration should be reviewed before deployment.
 
 Credentials, tokens, and other secrets must not be committed to Git.
+
+### Local NGINX Runtime Configuration
+
+The local Blue-Green NGINX runtime configuration is excluded from Git tracking.
+
+The repository provides a reusable example configuration instead.
 
 ---
 
@@ -1172,9 +1397,12 @@ Current limitations include:
 - No persistent insurance quote database.
 - No user authentication.
 - Simplified premium calculation rules.
-- Automated deployment requires a configured Ubuntu host.
-- Frontend deployment uses direct file copying.
-- Backend rollback does not provide automatic frontend rollback.
+- GitHub Actions validates deployment but does not maintain a persistent production environment.
+- Docker Compose is intended for local full-stack execution and validation.
+- Local Blue-Green deployment applies to the backend only.
+- The frontend does not use Blue-Green deployment.
+- No automatic frontend rollback mechanism.
+- Local Blue-Green deployment requires a separately configured Docker and NGINX environment.
 
 These limitations define the current project scope.
 
@@ -1186,6 +1414,10 @@ Developed as a hands-on **Full-Stack Application and DevOps Engineering Portfoli
 
 GitHub: **imtiaz04**
 
+Repository:
+
+https://github.com/imtiaz04/autoquote-platform
+
 ---
 
 ## 17. License
@@ -1196,4 +1428,4 @@ Until a license is added, the repository should not be assumed to grant permissi
 
 ---
 
-**AutoQuote demonstrates full-stack application development integrated with automated testing, Docker, container security scanning, GitHub Actions CI/CD, NGINX, and blue-green backend deployment.**
+**AutoQuote demonstrates full-stack application development integrated with automated testing, Docker, container security scanning, GitHub Actions CI/CD, NGINX, Docker Compose, and Blue-Green backend deployment validation.**
